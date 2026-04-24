@@ -1,9 +1,9 @@
 blueprint:
-  name: Garagepoort met helper switch en positiesensor
+  name: Garagepoort met input_boolean helper en positiesensor
   description: >
-    Ondersteunt elke binary_sensor (deur, raam, garagepoort, ESPHome, …).
-    De helper switch opent/sluit de garagepoort via een relay en
-    blijft gesynchroniseerd met de sensorstatus.
+    Werkt met elke binary_sensor (deur, raam, garagepoort, ESPHome, …).
+    Een input_boolean wordt gebruikt om de garagepoort te openen/sluiten
+    via een relay en blijft gesynchroniseerd met de sensorstatus.
   domain: automation
 
   input:
@@ -21,18 +21,18 @@ blueprint:
         entity:
           domain: switch
 
-    helper_switch:
-      name: Helper switch garagepoort
-      description: Helper switch om openen/sluiten aan te sturen
+    helper_boolean:
+      name: Helper input_boolean garagepoort
+      description: Input boolean om openen/sluiten aan te sturen
       selector:
         entity:
-          domain: switch
+          domain: input_boolean
 
 mode: single
 
 trigger:
   - platform: state
-    entity_id: !input helper_switch
+    entity_id: !input helper_boolean
 
   - platform: state
     entity_id: !input position_sensor
@@ -44,9 +44,9 @@ action:
       - conditions:
           - condition: template
             value_template: >
-              {{ trigger.entity_id == (input.helper_switch | string) }}
+              {{ trigger.entity_id == (input.helper_boolean | string) }}
           - condition: state
-            entity_id: !input helper_switch
+            entity_id: !input helper_boolean
             state: "on"
           - condition: state
             entity_id: !input position_sensor
@@ -64,9 +64,9 @@ action:
       - conditions:
           - condition: template
             value_template: >
-              {{ trigger.entity_id == (input.helper_switch | string) }}
+              {{ trigger.entity_id == (input.helper_boolean | string) }}
           - condition: state
-            entity_id: !input helper_switch
+            entity_id: !input helper_boolean
             state: "off"
           - condition: state
             entity_id: !input position_sensor
@@ -89,9 +89,9 @@ action:
             entity_id: !input position_sensor
             state: "on"
         sequence:
-          - service: switch.turn_on
+          - service: input_boolean.turn_on
             target:
-              entity_id: !input helper_switch
+              entity_id: !input helper_boolean
 
       # === Sensor → helper sync (gesloten) ===
       - conditions:
@@ -102,6 +102,6 @@ action:
             entity_id: !input position_sensor
             state: "off"
         sequence:
-          - service: switch.turn_off
+          - service: input_boolean.turn_off
             target:
-              entity_id: !input helper_switch
+              entity_id: !input helper_boolean
