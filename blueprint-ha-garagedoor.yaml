@@ -1,30 +1,31 @@
 blueprint:
-  name: Garagepoort met helper switch en deursensor
+  name: Garagepoort met helper switch en openingssensor
   description: >
-    Houdt de status van een garagepoort bij via een deursensor en
-    stuurt de poort aan via een relay. Een helper switch wordt gebruikt
-    om de poort te openen en te sluiten en blijft gesynchroniseerd met
-    de sensorstatus.
+    Houdt de status van een garagepoort bij via een openingssensor
+    (deur OF raam) en stuurt de poort aan via een relay.
+    Een helper switch wordt gebruikt om de poort te openen en te sluiten
+    en blijft gesynchroniseerd met de sensorstatus.
   domain: automation
+
   input:
-    door_sensor:
-      name: Deursensor garagepoort
-      description: Sensor die open/dicht detecteert
+    opening_sensor:
+      name: Garagepoort openingssensor
+      description: Deur- of raamsensor die de status van de poort aangeeft
       selector:
         entity:
           domain: binary_sensor
-          device_class: door
+          device_class: opening
 
     relay_switch:
       name: Relay garagepoort
-      description: Schakelaar die een puls geeft aan de garagepoort
+      description: Schakelaar die een puls geeft aan de garagepoortmotor
       selector:
         entity:
           domain: switch
 
     helper_switch:
       name: Helper switch garagepoort
-      description: Input_boolean of helper switch om de poort te bedienen
+      description: Helper switch om openen/sluiten aan te sturen
       selector:
         entity:
           domain: switch
@@ -32,17 +33,18 @@ blueprint:
 mode: single
 
 trigger:
-  # 1. Helper switch wordt bediend door gebruiker
+  # Gebruiker bedient helper switch
   - platform: state
     entity_id: !input helper_switch
 
-  # 2. Deursensor verandert van status
+  # Sensorstatus verandert
   - platform: state
-    entity_id: !input door_sensor
+    entity_id: !input opening_sensor
 
 action:
   - choose:
-      # === CASE 1: Gebruiker zet helper switch AAN → poort openen ===
+
+      # === Helper AAN → openen (als poort dicht is) ===
       - conditions:
           - condition: template
             value_template: >
@@ -51,59 +53,4 @@ action:
             entity_id: !input helper_switch
             state: "on"
           - condition: state
-            entity_id: !input door_sensor
-            state: "off"   # poort is dicht
-        sequence:
-          - service: switch.turn_on
-            target:
-              entity_id: !input relay_switch
-          - delay: "00:00:01"
-          - service: switch.turn_off
-            target:
-              entity_id: !input relay_switch
-
-      # === CASE 2: Gebruiker zet helper switch UIT → poort sluiten ===
-      - conditions:
-          - condition: template
-            value_template: >
-              {{ trigger.entity_id == (input.helper_switch | string) }}
-          - condition: state
-            entity_id: !input helper_switch
-            state: "off"
-          - condition: state
-            entity_id: !input door_sensor
-            state: "on"   # poort is open
-        sequence:
-          - service: switch.turn_on
-            target:
-              entity_id: !input relay_switch
-          - delay: "00:00:01"
-          - service: switch.turn_off
-            target:
-              entity_id: !input relay_switch
-
-      # === CASE 3: Sensor zegt "open" → helper switch synchroniseren ===
-      - conditions:
-          - condition: template
-            value_template: >
-              {{ trigger.entity_id == (input.door_sensor | string) }}
-          - condition: state
-            entity_id: !input door_sensor
-            state: "on"
-        sequence:
-          - service: switch.turn_on
-            target:
-              entity_id: !input helper_switch
-
-      # === CASE 4: Sensor zegt "dicht" → helper switch synchroniseren ===
-      - conditions:
-          - condition: template
-            value_template: >
-              {{ trigger.entity_id == (input.door_sensor | string) }}
-          - condition: state
-            entity_id: !input door_sensor
-            state: "off"
-        sequence:
-          - service: switch.turn_off
-            target:
-              entity_id: !input helper_switch
+            entity_id: !input opening_sensor
