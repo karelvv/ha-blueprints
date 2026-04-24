@@ -1,20 +1,18 @@
 blueprint:
-  name: Garagepoort met helper switch en openingssensor
+  name: Garagepoort met helper switch en positiesensor
   description: >
-    Houdt de status van een garagepoort bij via een openingssensor
-    (deur OF raam) en stuurt de poort aan via een relay.
-    Een helper switch wordt gebruikt om de poort te openen en te sluiten
-    en blijft gesynchroniseerd met de sensorstatus.
+    Ondersteunt elke binary_sensor (deur, raam, garagepoort, ESPHome, …).
+    De helper switch opent/sluit de garagepoort via een relay en
+    blijft gesynchroniseerd met de sensorstatus.
   domain: automation
 
   input:
-    opening_sensor:
-      name: Garagepoort openingssensor
-      description: Deur- of raamsensor die de status van de poort aangeeft
+    position_sensor:
+      name: Garagepoort positiesensor
+      description: Binary sensor (ON = open, OFF = gesloten)
       selector:
         entity:
           domain: binary_sensor
-          device_class: opening
 
     relay_switch:
       name: Relay garagepoort
@@ -33,18 +31,16 @@ blueprint:
 mode: single
 
 trigger:
-  # Gebruiker bedient helper switch
   - platform: state
     entity_id: !input helper_switch
 
-  # Sensorstatus verandert
   - platform: state
-    entity_id: !input opening_sensor
+    entity_id: !input position_sensor
 
 action:
   - choose:
 
-      # === Helper AAN → openen (als poort dicht is) ===
+      # === Helper AAN → openen (indien dicht) ===
       - conditions:
           - condition: template
             value_template: >
@@ -53,4 +49,59 @@ action:
             entity_id: !input helper_switch
             state: "on"
           - condition: state
-            entity_id: !input opening_sensor
+            entity_id: !input position_sensor
+            state: "off"
+        sequence:
+          - service: switch.turn_on
+            target:
+              entity_id: !input relay_switch
+          - delay: "00:00:01"
+          - service: switch.turn_off
+            target:
+              entity_id: !input relay_switch
+
+      # === Helper UIT → sluiten (indien open) ===
+      - conditions:
+          - condition: template
+            value_template: >
+              {{ trigger.entity_id == (input.helper_switch | string) }}
+          - condition: state
+            entity_id: !input helper_switch
+            state: "off"
+          - condition: state
+            entity_id: !input position_sensor
+            state: "on"
+        sequence:
+          - service: switch.turn_on
+            target:
+              entity_id: !input relay_switch
+          - delay: "00:00:01"
+          - service: switch.turn_off
+            target:
+              entity_id: !input relay_switch
+
+      # === Sensor → helper sync (open) ===
+      - conditions:
+          - condition: template
+            value_template: >
+              {{ trigger.entity_id == (input.position_sensor | string) }}
+          - condition: state
+            entity_id: !input position_sensor
+            state: "on"
+        sequence:
+          - service: switch.turn_on
+            target:
+              entity_id: !input helper_switch
+
+      # === Sensor → helper sync (gesloten) ===
+      - conditions:
+          - condition: template
+            value_template: >
+              {{ trigger.entity_id == (input.position_sensor | string) }}
+          - condition: state
+            entity_id: !input position_sensor
+            state: "off"
+        sequence:
+          - service: switch.turn_off
+            target:
+              entity_id: !input helper_switch
